@@ -2,20 +2,28 @@ package postgres_pool
 
 import (
 	"errors"
-	"fmt"
-	error_type "go_project/infrastructure/error"
 )
 
 var (
-	ErrViolatesForeignKey = fmt.Errorf("%w: violates foreign key", error_type.ErrPermanent)
-	ErrUniqueViolation    = fmt.Errorf("%w: unique violation", error_type.ErrPermanent)
+	ErrNoRows             = errors.New("no rows found")
+	ErrViolatesUnique     = errors.New("violates unique constraint (duplicate key)")
+	ErrViolatesForeignKey = errors.New("violates foreign key constraint")
+	ErrViolatesNotNull    = errors.New("violates not null constraint")
+	ErrViolatesCheck      = errors.New("violates check constraint")
 
-	// повтор может помочь
-	ErrConnection = fmt.Errorf("%w: connection error", error_type.ErrTransient)
-	ErrDeadlock   = fmt.Errorf("%w: deadlock", error_type.ErrTransient)
-	ErrTimeout    = fmt.Errorf("%w: timeout", error_type.ErrTransient)
+	// --- 2. Конкурентный доступ и транзакции (Concurrency & TX) ---
+	ErrSerializationFailure = errors.New("transaction serialization failure (optimistic lock conflict)")
+	ErrDeadlockDetected     = errors.New("database deadlock detected")
+	ErrTxClosed             = errors.New("transaction is already closed, committed, or rolled back")
+	ErrTxBeginFailed        = errors.New("failed to begin transaction")
+	ErrTxCommitFailed       = errors.New("failed to commit transaction")
+	ErrTxRollbackFailed     = errors.New("failed to rollback transaction")
 
-	// без маркера
-	ErrNoRows  = errors.New("no rows")
-	ErrUnknown = errors.New("unknown")
+	// --- 3. Соединения, пул и тайм-ауты (Connection & Pool) ---
+	ErrConnectionClosed = errors.New("database connection is closed")
+	ErrPoolClosed       = errors.New("connection pool is closed")
+	ErrTimeoutExceeded  = errors.New("database query timeout exceeded")
+
+	// --- 4. Общая / Неизвестная ошибка ---
+	ErrUnknown = errors.New("unknown database error")
 )

@@ -36,12 +36,8 @@ func (h *ResultHandler) ErrorResponse(err error, msg string) error {
 		return nil
 
 	case errors.Is(err, error_type.ErrNotFound),
-		errors.Is(err, error_type.ErrInvalidArgument),
-		errors.Is(err, error_type.ErrPermanent):
+		errors.Is(err, error_type.ErrInvalidArgument):
 		marker, logFunc = error_type.ErrPermanent, h.log.Warn
-
-	case errors.Is(err, error_type.ErrTransient):
-		marker, logFunc = error_type.ErrTransient, h.log.Warn
 
 	default:
 		marker, logFunc = error_type.ErrTransient, h.log.Error

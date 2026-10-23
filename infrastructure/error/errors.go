@@ -13,6 +13,6 @@ func IsRetryable(err error) bool {
 
 var (
 	ErrNotFound        = errors.New("not found")
-	ErrInvalidArgument = errors.New("Invalid argument")
-	ErrConflict        = errors.New("Conflict")
+	ErrInvalidArgument = errors.New("invalid argument")
+	ErrConflict        = errors.New("conflict")
 )

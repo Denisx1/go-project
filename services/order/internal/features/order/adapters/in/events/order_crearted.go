@@ -4,8 +4,6 @@ import (
 	"context"
 	logger "go_project/infrastructure/logging"
 	messaging "go_project/infrastructure/messaging"
-	"go_project/infrastructure/messaging/request"
-	"go_project/infrastructure/messaging/response"
 	"go_project/order/internal/core/domain"
 )
 
@@ -20,23 +18,23 @@ func (h *Handler) handleOrderCreated(
 ) error {
 
 	log := logger.FromContext(ctx)
-	resposeHandler := response.NewResultHandler(log, msg)
+	// resposeHandler := response.NewResultHandler(log, msg)
 	log.Info("handling message",
 		"topic", msg.Topic,
 		"key", string(msg.Key),
 		"body_size", len(msg.Body),
 		"headers", msg.Headers,
 	)
-	var event CreateOrderEvent
-	if err := request.DecodeAndValidate(msg, &event); err != nil {
-		return resposeHandler.ErrorResponse(err, "failed to decode and validate request")
+	// var event CreateOrderEvent
+	// if err := request.DecodeAndValidate(msg, &event); err != nil {
+	// 	return resposeHandler.ErrorResponse(err, "failed to decode and validate request")
 
-	}
-	orderDomain := domainFromDTO(event)
-	err := h.OrderService.CreateOrder(ctx, orderDomain)
-	if err != nil {
-		return resposeHandler.ErrorResponse(err, "Error to handle event")
-	}
+	// }
+	// orderDomain := domainFromDTO(event)
+	// _, err := h.OrderService.CreateOrder(ctx, orderDomain)
+	// if err != nil {
+	// 	return resposeHandler.ErrorResponse(err, "Error to handle event")
+	// }
 	return nil
 
 }

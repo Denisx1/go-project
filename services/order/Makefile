@@ -1,68 +1,66 @@
-ifeq ($(OS),Windows_NT)
-    PROJECT_ROOT = $(CURDIR)
-	RM_PGDATA = if exist out\pgdata rmdir /s /q out\pgdata
-	RM_LOGS   = if exist out\log rmdir /s /q out\log
-	 
-else
-    PROJECT_ROOT = $(shell pwd)
-	RM_PGDATA = rm -rf ./out/pgdata
-	RM_LOGS = rm -rf ./out/log
-endif
-
 include .env
+
 CONTRACTS_DIR := ../../contracts
-ENV_FILE:=.env
+ENV_FILE := .env
+DC := docker compose --env-file $(ENV_FILE)
 export
 
 env-up:
-	@docker-compose --env-file $(ENV_FILE) up -d $(POSTGRES_CONTAINER)
+	@$(DC) up -d $(POSTGRES_CONTAINER)
+
 env-down:
-	@docker-compose --env-file $(ENV_FILE) down $(POSTGRES_CONTAINER)
+	@$(DC) stop $(POSTGRES_CONTAINER)
+
 env-cleanup:
-	@docker compose --env-file $(ENV_FILE) down -v $(POSTGRES_CONTAINER)
-	@$(RM_PGDATA)
+	@$(DC) down -v
+	@rm -rf ./out/pgdata
 	@echo "All data cleaned up for $(SERVICE_NAME)."
 
-env-port-forward: 
-	@docker compose --env-file $(ENV_FILE)  up -d $(PORT_FORWARDER_CONTAINER)
+env-port-forward:
+	@$(DC) up -d $(PORT_FORWARDER_CONTAINER)
 
 env-port-close:
-	@docker compose --env-file $(ENV_FILE)  stop $(PORT_FORWARDER_CONTAINER)
-	@docker compose --env-file $(ENV_FILE)  rm -f $(PORT_FORWARDER_CONTAINER)
+	@$(DC) stop $(PORT_FORWARDER_CONTAINER)
+	@$(DC) rm -f $(PORT_FORWARDER_CONTAINER)
 
 migrate-create:
 ifndef seq
-	$(error ❌ Ошибка: Не указано имя миграции! Использование: make migrate-create s=$(s) seq=add_users_table)
+	$(error Не указано имя миграции! Использование: make migrate-create seq=add_users_table)
 endif
-	@docker-compose --env-file $(ENV_FILE) run --rm $(MIGRATION_CONTAINER) \
-	create \
-	-ext sql \
-	-dir ${MIGRATION_FOLDER} \
-	-seq "$(seq)"
+	@$(DC) run --rm $(MIGRATION_CONTAINER) \
+		create \
+		-ext sql \
+		-dir $(MIGRATION_FOLDER) \
+		-seq "$(seq)"
 
 logs-cleanup:
-	@$(RM_LOGS)
-	@echo "All data cleaned up for $(SERVICE_NAME)."
+	@rm -rf ./out/log
+	@echo "Logs cleaned up for $(SERVICE_NAME)."
+
 migrate-up:
-	@make migrate-action action="$(if $(action),$(action),up)"
+	@$(MAKE) migrate-action action="$(if $(action),$(action),up)"
+
 migrate-down:
-	@make migrate-action action="$(if $(action),$(action),down 1)"
+	@$(MAKE) migrate-action action="$(if $(action),$(action),down 1)"
+
 migrate-drop:
-	@make migrate-action action="drop -f"
+	@$(MAKE) migrate-action action="drop -f"
+
 migrate-version:
-	@make migrate-action action=version
-proto-generate:
-	@protoc -I $(CONTRACTS_DIR)/proto \
-		$(CONTRACTS_DIR)/proto/$(SERVICE_NAME)/$(SERVICE_NAME).proto \
-		--go_out=$(CONTRACTS_DIR)/gen/go \
-		--go_opt=paths=source_relative \
-		--go-grpc_out=$(CONTRACTS_DIR)/gen/go \
-		--go-grpc_opt=paths=source_relative
+	@$(MAKE) migrate-action action=version
+
 migrate-action:
-	@docker-compose --env-file $(ENV_FILE) run --rm $(MIGRATION_CONTAINER) \
-		-path /migrations \
+	@$(DC) run --rm $(MIGRATION_CONTAINER) \
+		-path $(MIGRATION_FOLDER) \
 		-database "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_CONTAINER):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable" \
 		$(action)
+		
+proto-generate:
+	@$(MAKE) -C ../../contracts proto-generate
 
-run: ## Запустить Go-код сервиса локально
+run:
 	@go run ./cmd/order
+
+.PHONY: env-up env-down env-cleanup env-port-forward env-port-close \
+	migrate-create logs-cleanup migrate-up migrate-down migrate-drop \
+	migrate-version migrate-action proto-generate run

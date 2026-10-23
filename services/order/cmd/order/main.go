@@ -14,6 +14,7 @@ import (
 	"go_project/order/internal/core/config"
 	"go_project/order/internal/features/order/adapters/in/events"
 	OrderGrpcHandler "go_project/order/internal/features/order/adapters/in/grpc"
+	"go_project/order/internal/features/order/adapters/out/outbox"
 	"go_project/order/internal/features/order/adapters/out/repository"
 	"go_project/order/internal/features/order/application/service"
 	"os"
@@ -62,12 +63,13 @@ func run() error {
 	}
 	logger.Debug("Kafka reader successfully connected")
 	defer reader.Close()
+	outboxRepository := outbox.NewOutbox(pool)
 	repository := repository.NewRepository(pool)
-	service := service.NewService(repository)
+	service := service.NewService(repository, outboxRepository, pool)
 	handler := events.NewHandler(service)
 	consumer := consumer.NewConsumer(reader, writer, handler.Handle, logger)
 
-	grpcHandler := OrderGrpcHandler.NewOrderGRPCHandler()
+	grpcHandler := OrderGrpcHandler.NewOrderGRPCHandler(service)
 	grpcServer, err := server.NewGrpcServer(cfg.GrpcServer, logger)
 	if err != nil {
 		return fmt.Errorf("create grpc server: %w", err)

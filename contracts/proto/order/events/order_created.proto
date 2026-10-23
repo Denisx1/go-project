@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package order.events.v1;
+
+option go_package = "contracts/gen/go/order/events/v1;ordereventsv1";
+
+message OrderCreated {
+  string order_id = 1;
+  int64 version = 2;
+  string title = 3;
+  string text = 4;
+  bool is_active = 5;
+}

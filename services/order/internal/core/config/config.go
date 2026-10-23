@@ -29,10 +29,6 @@ type Config struct {
 	Postgres    pgx_pool.Config
 }
 
-// Load читает переменные с префиксом и, если у структуры есть Validate, вызывает его.
-
-type validator interface{ Validate() error }
-
 func NewAppConfig() (AppConfig, error) {
 	var appConfig AppConfig
 	if err := envconfig.Process("APP", &appConfig); err != nil {

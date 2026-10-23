@@ -8,12 +8,14 @@ import (
 )
 
 type Config struct {
-	Host     string        `envconfig:"POSTGRES_HOST"     required:"true"`
-	Port     string        `envconfig:"PORT"     default:"5432"`
-	User     string        `envconfig:"USER"     required:"true"`
-	Password string        `envconfig:"PASSWORD" required:"true"`
-	Database string        `envconfig:"DB"       required:"true"`
-	Timeout  time.Duration `envconfig:"TIMEOUT"  required:"true"`
+	Host           string        `envconfig:"POSTGRES_HOST"     required:"true"`
+	Port           string        `envconfig:"PORT"     default:"5432"`
+	User           string        `envconfig:"USER"     required:"true"`
+	Password       string        `envconfig:"PASSWORD" required:"true"`
+	Database       string        `envconfig:"DB"       required:"true"`
+	ConnectTimeout time.Duration `envconfig:"CONN_TIMEOUT"  required:"true"`
+	OpTimeout      time.Duration `envconfig:"OP_TIMEOUT"  required:"true"`
+	TxTimeout      time.Duration `envconfig:"TX_TIMEOUT"  required:"true"`
 }
 
 func NewConfig() (Config, error) {

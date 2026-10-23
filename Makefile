@@ -1,8 +1,14 @@
-infra-up:
-	@docker-compose up -d
+NET_NAME := shared-network
 
-ptoto-generate:
-	@protoc -I proto proto/order/.proto --go_out=./gen/go --go_opt=paths=source_relative --go-grpc_out=./gen/go --go-grpc_opt=paths=source_relative 
+init-net:
+	@docker network inspect $(NET_NAME) >/dev/null 2>&1 || docker network create $(NET_NAME) >/dev/null
 
+infra-up: init-net
+	@docker compose up -d
+
+infra-down:
+	@docker compose down
 infra-logs: ## Посмотреть логи общей инфраструктуры
-	@docker compose logs -f    
+	@docker compose logs -f    	
+
+.PHONY: init-net infra-up infra-down

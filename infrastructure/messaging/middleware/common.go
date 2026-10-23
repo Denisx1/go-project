@@ -44,7 +44,6 @@ func withLog(log logger.Logger) Middleware {
 			// 2. Создаем расширенный логгер
 			extendedLog := log.With(
 				"request_id", requestId,
-				"topic", msg.Topic,
 				"size", len(msg.Body),
 			)
 

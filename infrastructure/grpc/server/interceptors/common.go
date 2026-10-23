@@ -51,7 +51,6 @@ func Logger(
 		l := log.With(
 			"request_id", requestId,
 			"method", info.FullMethod,
-			"server", info.Server,
 		)
 		ctx = logger.ToContext(ctx, l)
 		return handler(ctx, req)
@@ -76,9 +75,8 @@ func Trace() grpc.UnaryServerInterceptor {
 		res, err := handler(ctx, req)
 		code := status.Code(err)
 		attrs := []any{
-			"method", info.FullMethod,
 			"code", code.String(),
-			"duration_ms", time.Since(start).Milliseconds(),
+			"Latency", time.Since(start).String(),
 		}
 		switch {
 		case err == nil:

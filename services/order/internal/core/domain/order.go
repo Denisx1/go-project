@@ -7,7 +7,7 @@ import (
 
 type Order struct {
 	ID      string
-	Version int
+	Version int64
 
 	Title    string
 	Text     string
@@ -16,7 +16,7 @@ type Order struct {
 
 func NewOrder(
 	id string,
-	version int,
+	version int64,
 	title string,
 	text string,
 	isActive bool,
