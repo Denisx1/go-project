@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"go_project/infrastructure/grpc/config.go"
+	grpcconfig "go_project/infrastructure/grpc/config.go"
 	logger "go_project/infrastructure/logging"
 	"go_project/infrastructure/messaging/kafka"
 	kafka_reader "go_project/infrastructure/messaging/kafka/reader"
@@ -22,7 +22,7 @@ type AppConfig struct {
 type Config struct {
 	App         AppConfig
 	Log         logger.Config
-	GrpcServer  config.GrpcConfig
+	GrpcServer  grpcconfig.Config
 	kafka       kafka.Config
 	KafkaReader kafka_reader.ReaderConfig
 	KafkaWriter kafka_writter.WriterConfig
@@ -53,7 +53,7 @@ func Load() Config {
 	cfg.Postgres = postgres
 	log := logger.NewLoggerConfigMust(app.ServiceName)
 	cfg.Log = log
-	server := config.NewServerConfigMust(cfg.App.ServiceENV, cfg.App.RequestIdKey)
+	server := grpcconfig.NewServerConfigMust(cfg.App.ServiceENV, cfg.App.RequestIdKey)
 	cfg.GrpcServer = server
 	kf := kafka.NewKafkaConfigMust()
 	cfg.kafka = kf

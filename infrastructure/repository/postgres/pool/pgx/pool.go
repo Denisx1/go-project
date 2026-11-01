@@ -15,6 +15,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+var _ postgres_pool.Database = (*Pool)(nil) // проверка при компиляции
+var _ postgres_pool.Tx = (*pgxTxAdapter)(nil)
+
 type Pool struct {
 	*pgxpool.Pool
 	opTimeout time.Duration
@@ -24,7 +27,7 @@ type Pool struct {
 func NewPool(
 	ctx context.Context,
 	config Config,
-) (*Pool, error) {
+) (postgres_pool.Database, error) {
 	connectionString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		config.User,
 		config.Password,
@@ -69,16 +72,6 @@ func (p *Pool) OpTimeout() time.Duration { return p.opTimeout }
 
 func (p *Pool) Close() { p.Pool.Close() }
 
-func (p *Pool) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	if p.opTimeout <= 0 {
-		return ctx, func() {}
-	}
-	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < p.opTimeout {
-		return ctx, func() {}
-	}
-	return context.WithTimeout(ctx, p.opTimeout)
-}
-
 func txFromContext(ctx context.Context) (postgres_pool.Tx, bool) {
 	tx, ok := ctx.Value(postgres_pool.TxKey{}).(postgres_pool.Tx)
 	return tx, ok
@@ -92,11 +85,11 @@ func (p *Pool) Exec(
 	if tx, ok := txFromContext(ctx); ok {
 		return tx.Exec(ctx, sql, args...)
 	}
-	txCtx, cancel := p.withDeadline(ctx, p.txTimeout)
+	opCtx, cancel := p.withDeadline(ctx, p.opTimeout)
 	defer cancel()
-	tag, err := p.Pool.Exec(txCtx, sql, args...)
+	tag, err := p.Pool.Exec(opCtx, sql, args...)
 	if err != nil {
-		return nil, err
+		return nil, mapErrors(err)
 	}
 	return pgxCommandTag{tag: tag}, nil
 }
@@ -107,12 +100,12 @@ func (p *Pool) Query(
 	if tx, ok := txFromContext(ctx); ok {
 		return tx.Query(ctx, sql, args...)
 	}
-	txCtx, cancel := p.withDeadline(ctx, p.txTimeout)
+	opCtx, cancel := p.withDeadline(ctx, p.opTimeout)
 
-	rows, err := p.Pool.Query(txCtx, sql, args...)
+	rows, err := p.Pool.Query(opCtx, sql, args...)
 	if err != nil {
 		cancel()
-		return nil, err
+		return nil, mapErrors(err)
 	}
 	return pgxRows{Rows: rows, cancel: cancel}, nil
 }
@@ -123,8 +116,8 @@ func (p *Pool) QueryRow(
 	if tx, ok := txFromContext(ctx); ok {
 		return tx.QueryRow(ctx, sql, args...)
 	}
-	txCtx, cancel := p.withDeadline(ctx, p.txTimeout)
-	return pgxRow{row: p.Pool.QueryRow(txCtx, sql, args...), cancel: cancel}
+	opCtx, cancel := p.withDeadline(ctx, p.opTimeout)
+	return pgxRow{row: p.Pool.QueryRow(opCtx, sql, args...), cancel: cancel}
 }
 
 func (p *Pool) withTx(
@@ -176,21 +169,46 @@ func (p *Pool) withDeadline(
 	}
 	return context.WithTimeout(ctx, d)
 }
-
-func (p *Pool) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	return p.withTx(ctx, pgx.TxOptions{}, fn)
-}
-func (p *Pool) WithTxSerializable(ctx context.Context, fn func(ctx context.Context) error) error {
+func (p *Pool) withTxRetry(
+	ctx context.Context,
+	opts pgx.TxOptions,
+	fn func(ctx context.Context) error,
+) error {
+	// Вложенный вызов: ретраить внутри чужой транзакции нельзя,
+	// иначе повторится только кусок, а не вся транзакция.
 	const maxRetries = 3
-	opts := pgx.TxOptions{IsoLevel: pgx.Serializable}
+	if _, ok := txFromContext(ctx); ok {
+		return fn(ctx)
+	}
 
 	var err error
 	for i := 0; i <= maxRetries; i++ {
 		if err = p.withTx(ctx, opts, fn); err == nil || !isSerializationFailure(err) {
 			return err
 		}
+		if ctx.Err() != nil {
+			return err
+		}
+		// небольшая пауза с ростом, чтобы конкурирующие транзакции разошлись
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(time.Duration(i+1) * 10 * time.Millisecond):
+		}
 	}
 	return fmt.Errorf("tx failed after %d retries: %w", maxRetries, err)
+}
+
+func (p *Pool) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return p.withTx(ctx, pgx.TxOptions{}, fn)
+}
+
+func (p *Pool) WithTxRepeatableRead(ctx context.Context, fn func(ctx context.Context) error) error {
+	return p.withTxRetry(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead}, fn)
+}
+
+func (p *Pool) WithTxSerializable(ctx context.Context, fn func(ctx context.Context) error) error {
+	return p.withTxRetry(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable}, fn)
 }
 
 // Rollback на «свежем» контексте: если txCtx уже истёк по таймауту,

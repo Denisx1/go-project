@@ -1,23 +1,21 @@
-package OrderGrpcHandler
+package grpchandler
 
 import (
 	"context"
+	"fmt"
 	orderv1 "go_project/contracts/gen/go/order"
-	GrpcResponse "go_project/infrastructure/grpc/server/response"
-	logger "go_project/infrastructure/logging"
+
 	"go_project/order/internal/core/domain"
 )
 
-func (h *OrderGRPCHandler) Register(
+func (h *OrderGRPCHandler) Create(
 	ctx context.Context,
-	req *orderv1.RegisterRequest,
+	req *orderv1.CreateRequest,
 ) (*orderv1.RegisterResponse, error) {
-	log := logger.FromContext(ctx)
-	responseHandler := GrpcResponse.NewGrpcResponseHandler(log)
 	orderDomain := domain.NewOrderUninitialized(req.Title, req.Text)
 	created, err := h.OrderService.CreateOrder(ctx, orderDomain)
 	if err != nil {
-		return nil, responseHandler.ErrorResponse(err, "failed to create order")
+		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
 	return &orderv1.RegisterResponse{
 		Id:       created.ID,

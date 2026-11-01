@@ -1,6 +1,11 @@
 package interceptors
 
-import "google.golang.org/grpc/codes"
+import (
+	"errors"
+	error_type "go_project/infrastructure/error"
+
+	"google.golang.org/grpc/codes"
+)
 
 func isServerFault(c codes.Code) bool {
 	switch c {
@@ -8,4 +13,19 @@ func isServerFault(c codes.Code) bool {
 		return true
 	}
 	return false
+}
+
+func mapDomainError(err error) (codes.Code, string) {
+	switch {
+	case errors.Is(err, error_type.ErrAlreadyExist):
+		return codes.AlreadyExists, err.Error()
+	case errors.Is(err, error_type.ErrConflict):
+		return codes.AlreadyExists, err.Error()
+	case errors.Is(err, error_type.ErrNotFound):
+		return codes.NotFound, err.Error()
+	case errors.Is(err, error_type.ErrInvalidArgument):
+		return codes.InvalidArgument, err.Error()
+	default:
+		return codes.Internal, "internal error"
+	}
 }

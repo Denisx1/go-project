@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package user.events.v1;
+
+option go_package = "contracts/gen/go/user/events/v1;usereventsv1";
+
+message CandidateCreated {
+  string candidate_id = 1;
+  string email = 2;
+  string role = 3;
+  string actionType = 4;
+}
+
+

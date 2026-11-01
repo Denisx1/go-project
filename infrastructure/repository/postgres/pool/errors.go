@@ -24,6 +24,10 @@ var (
 	ErrPoolClosed       = errors.New("connection pool is closed")
 	ErrTimeoutExceeded  = errors.New("database query timeout exceeded")
 
+	ErrInvalidInput = errors.New("invalid input in db")
+
+	ErrSyntax = errors.New("invalid sql")
+
 	// --- 4. Общая / Неизвестная ошибка ---
 	ErrUnknown = errors.New("unknown database error")
 )

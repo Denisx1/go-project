@@ -1,0 +1,71 @@
+package config
+
+import (
+	"fmt"
+
+	redisclient "go_project/infrastructure/cache/redis"
+	grpcconfig "go_project/infrastructure/grpc/config.go"
+	logger "go_project/infrastructure/logging"
+	"go_project/infrastructure/messaging/kafka"
+	kafka_reader "go_project/infrastructure/messaging/kafka/reader"
+	kafka_writter "go_project/infrastructure/messaging/kafka/writter"
+	pgx_pool "go_project/infrastructure/repository/postgres/pool/pgx"
+
+	"github.com/kelseyhightower/envconfig"
+)
+
+type AppConfig struct {
+	TimeZone     string `envconfig:"TIMEZONE" required:"true"`
+	ServiceName  string `envconfig:"NAME" required:"true"`
+	ServiceENV   string `envconfig:"ENV" requires:"true"`
+	RequestIdKey string `envconfig:"ID_KEY" requires:"true"`
+	SessionKey   string `envconfig:"SESSION_KEY" requires:"true"`
+}
+
+type Config struct {
+	App         AppConfig
+	Log         logger.Config
+	GrpcServer  grpcconfig.Config
+	kafka       kafka.Config
+	KafkaReader kafka_reader.ReaderConfig
+	KafkaWriter kafka_writter.WriterConfig
+	Postgres    pgx_pool.Config
+	Cache       redisclient.Config
+}
+
+func NewAppConfig() (AppConfig, error) {
+	var appConfig AppConfig
+	if err := envconfig.Process("APP", &appConfig); err != nil {
+		return AppConfig{}, fmt.Errorf("process app config: %w", err)
+	}
+	return appConfig, nil
+}
+func NewAppConfigMust() AppConfig {
+	config, err := NewAppConfig()
+	if err != nil {
+		err = fmt.Errorf("get App config: %w", err)
+		panic(err)
+	}
+	return config
+}
+
+func Load() Config {
+	var cfg Config
+	app := NewAppConfigMust()
+	cfg.App = app
+	postgres := pgx_pool.NewConfigMust()
+	cfg.Postgres = postgres
+	cache := redisclient.NewRedisConfigMust()
+	cfg.Cache = cache
+	log := logger.NewLoggerConfigMust(app.ServiceName)
+	cfg.Log = log
+	server := grpcconfig.NewServerConfigMust(cfg.App.ServiceENV, cfg.App.RequestIdKey)
+	cfg.GrpcServer = server
+	kf := kafka.NewKafkaConfigMust()
+	cfg.kafka = kf
+	kr := kafka_reader.NewReaderConfigMust(kf, cfg.App.RequestIdKey)
+	cfg.KafkaReader = kr
+	kw := kafka_writter.NewWriterConfigMust(kf)
+	cfg.KafkaWriter = kw
+	return cfg
+}

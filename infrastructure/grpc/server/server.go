@@ -1,15 +1,19 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"go_project/infrastructure/grpc/config.go"
+	grpcconfig "go_project/infrastructure/grpc/config.go"
 	"go_project/infrastructure/grpc/server/interceptors"
 	logger "go_project/infrastructure/logging"
 	"net"
 	"sync"
 	"time"
 
+	"buf.build/go/protovalidate"
+
+	pvmw "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/protovalidate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -17,7 +21,7 @@ import (
 )
 
 type Server struct {
-	cfg      config.GrpcConfig
+	cfg      grpcconfig.Config
 	log      logger.Logger
 	raw      *grpc.Server
 	health   *health.Server
@@ -27,18 +31,29 @@ type Server struct {
 	closeErr  error
 }
 
+type Check struct {
+	Name string
+	Fn   func(ctx context.Context) error
+}
+
 func NewGrpcServer(
-	cfg config.GrpcConfig,
+	cfg grpcconfig.Config,
 	log logger.Logger,
 ) (*Server, error) {
 	lis, err := net.Listen("tcp", ":"+cfg.Port)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen port %s: %w", cfg.Port, err)
 	}
+	validator, err := protovalidate.New() // один раз при старте
+	if err != nil {
+		return nil, fmt.Errorf("create validator: %w", err)
+	}
 	chain := []grpc.UnaryServerInterceptor{
 		interceptors.RequestId(cfg.RequestIdKey),
 		interceptors.Logger(log),
 		interceptors.Trace(),
+		interceptors.Errors(),
+		pvmw.UnaryServerInterceptor(validator),
 		interceptors.Panic(),
 	}
 
@@ -111,4 +126,30 @@ func (s *Server) Close() error {
 		_ = s.listener.Close()
 	})
 	return s.closeErr
+}
+
+func (s *Server) WatchHealth(ctx context.Context, checks ...Check) {
+	go func() {
+		t := time.NewTicker(s.cfg.HeathInterval)
+		defer t.Stop()
+		for {
+			status := grpc_health_v1.HealthCheckResponse_SERVING
+			for _, c := range checks {
+				cctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				err := c.Fn(cctx)
+				cancel()
+				if err != nil {
+					s.log.Warn("health check failed", "check", c.Name, "error", err)
+					status = grpc_health_v1.HealthCheckResponse_NOT_SERVING
+				}
+			}
+			s.health.SetServingStatus("", status)
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+		}
+	}()
 }

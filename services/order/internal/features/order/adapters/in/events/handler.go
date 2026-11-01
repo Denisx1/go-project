@@ -13,6 +13,7 @@ type OrderService interface {
 		ctx context.Context,
 		order domain.Order,
 	) (domain.Order, error)
+	DeleteOrder(ctx context.Context, id string) error
 }
 type Router interface {
 	Handle(key string, fn messaging.Handler)
@@ -28,7 +29,7 @@ func NewHandler(orderService OrderService) *Handler {
 		router:       router.NewRouter(),
 		OrderService: orderService,
 	}
-	h.router.Handle(orderevents.EventTypeCreated, h.handleOrderCreated)
+	h.router.Handle(orderevents.EventTypeCreated, h.handleDeleteOrder)
 	return h
 }
 

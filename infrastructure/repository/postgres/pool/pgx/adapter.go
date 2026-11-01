@@ -81,6 +81,8 @@ func mapErrors(err error) error {
 		codeSerializationFailure = "40001"
 		codeDeadlockDetected     = "40P01"
 		codeTimeoutExceeded      = "57014"
+		codeSyntaxError          = "42601"
+		codeSyntaxUUIDError      = "22P02"
 	)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -90,6 +92,7 @@ func mapErrors(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
+
 		case codeUniqueViolation: // unique_violation
 			return postgres_pool.ErrViolatesUnique
 		case codeForeignKeyViolation: // foreign_key_violation
@@ -104,6 +107,12 @@ func mapErrors(err error) error {
 			return postgres_pool.ErrDeadlockDetected
 		case codeTimeoutExceeded: // query_canceled / statement_timeout
 			return postgres_pool.ErrTimeoutExceeded
+		case codeSyntaxUUIDError:
+			return fmt.Errorf("%w: %s",
+				postgres_pool.ErrInvalidInput, pgErr.Message)
+		case codeSyntaxError:
+			return fmt.Errorf("%w: %s",
+				postgres_pool.ErrSyntax, pgErr.Message)
 		}
 	}
 	// ошибки сети без PgError: connection refused, EOF, reset
