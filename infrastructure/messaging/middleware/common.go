@@ -187,6 +187,42 @@ func withDLQ(writer producer.Writer) Middleware {
 	}
 }
 
+func Errors() Middleware {
+	return func(next messaging.Handler) messaging.Handler {
+		return func(ctx context.Context, msg messaging.Message) error {
+			err := next(ctx, msg)
+			if err == nil {
+				return nil
+			}
+			var (
+				marker  error
+				logFunc func(string, ...any)
+			)
+
+			log := logger.FromContext(ctx)
+			switch {
+			case errors.Is(err, error_type.ErrConflict):
+				log.Info("duplicate event, treated as success", "reason", err)
+				return nil
+
+			case errors.Is(err, error_type.ErrNotFound),
+				errors.Is(err, error_type.ErrInvalidArgument):
+				marker, logFunc = error_type.ErrPermanent, log.Warn
+			case errors.Is(err, error_type.ErrPermanent):
+				marker, logFunc = error_type.ErrPermanent, log.Warn
+			default:
+				marker, logFunc = error_type.ErrTransient, log.Error
+			}
+			logFunc(err.Error(), err)
+			if errors.Is(err, marker) {
+				return fmt.Errorf("%s: %w", msg, err) // маркер уже в цепочке, второй раз не добавляем
+			}
+			return fmt.Errorf("%s: %w: %w", msg, marker, err)
+
+		}
+	}
+}
+
 // ---------- Recover ----------
 
 func withRecover() Middleware {

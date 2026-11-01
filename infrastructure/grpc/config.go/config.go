@@ -1,4 +1,4 @@
-package config
+package grpcconfig
 
 import (
 	"fmt"
@@ -14,21 +14,23 @@ type KeepaliveConfig struct {
 	MaxConnectionIdle     time.Duration `envconfig:"MAX_CONNECTION_IDLE"`
 	MaxConnectionAge      time.Duration `envconfig:"MAX_CONNECTION_AGE"`
 	MaxConnectionAgeGrace time.Duration `envconfig:"MAX_CONNECTION_AGE_GRACE"`
-	Time                  time.Duration `envconfig:"TIME"`
-	Timeout               time.Duration `envconfig:"TIMEOUT"`
+
+	Time    time.Duration `envconfig:"TIME"`
+	Timeout time.Duration `envconfig:"TIMEOUT"`
 
 	// EnforcementPolicy
 	MinTime             time.Duration `envconfig:"MIN_TIME" default:"10s"`
 	PermitWithoutStream bool          `envconfig:"PERMIT_WITHOUT_STREAM" default:"true"`
 }
 
-type GrpcConfig struct {
+type Config struct {
 	Port             string        `envconfig:"PORT" required:"true"`
 	Timeout          time.Duration `envconfig:"TIMEOUT" required:"true"`
 	EnableReflection bool          `envconfig:"REFLECTION" required:"true"`
 
-	MaxRecvMsgSize int `envconfig:"MAX_RECV_MSG_SIZE" default:"4194304"`
-	MaxSendMsgSize int `envconfig:"MAX_SEND_MSG_SIZE" default:"4194304"`
+	MaxRecvMsgSize int           `envconfig:"MAX_RECV_MSG_SIZE" default:"4194304"`
+	MaxSendMsgSize int           `envconfig:"MAX_SEND_MSG_SIZE" default:"4194304"`
+	HeathInterval  time.Duration `envconfig:"HEALTH_INTERVAL" default:"10s"`
 
 	Keepalive KeepaliveConfig `ignored:"true"`
 
@@ -38,32 +40,35 @@ type GrpcConfig struct {
 func NewServerConfig(
 	env string,
 	requestIdKey string,
-) (GrpcConfig, error) {
+) (Config, error) {
 	var keepaliveConfig KeepaliveConfig
-	var config GrpcConfig
+	var config Config
 	if err := envconfig.Process("GRPC_KEEPALIVE", &keepaliveConfig); err != nil {
-		return GrpcConfig{}, fmt.Errorf("process logger config: %w", err)
+		return Config{}, fmt.Errorf("process logger config: %w", err)
 	}
 	if err := envconfig.Process("GRPC", &config); err != nil {
-		return GrpcConfig{}, fmt.Errorf("process logger config: %w", err)
+		return Config{}, fmt.Errorf("process logger config: %w", err)
 	}
 	switch env {
 	case "local":
 		config.EnableReflection = true
 	case "prod":
 		if config.EnableReflection {
-			return GrpcConfig{}, fmt.Errorf("grpc reflection must be disabled in prod")
+			return Config{}, fmt.Errorf("grpc reflection must be disabled in prod")
 		}
 	}
 	config.Keepalive = keepaliveConfig
 	config.RequestIdKey = requestIdKey
 	if err := config.validate(); err != nil {
-		return GrpcConfig{}, fmt.Errorf("validate grpc config: %w", err)
+		return Config{}, fmt.Errorf("validate grpc config: %w", err)
 	}
-	return GrpcConfig{
+	return Config{
 		Port:             config.Port,
 		Timeout:          config.Timeout,
 		EnableReflection: config.EnableReflection,
+		MaxRecvMsgSize:   config.MaxRecvMsgSize,
+		MaxSendMsgSize:   config.MaxSendMsgSize,
+		HeathInterval:    config.HeathInterval,
 		Keepalive:        keepaliveConfig,
 		RequestIdKey:     requestIdKey,
 	}, nil
@@ -72,7 +77,7 @@ func NewServerConfig(
 func NewServerConfigMust(
 	env string,
 	requestIdKey string,
-) GrpcConfig {
+) Config {
 	config, err := NewServerConfig(env, requestIdKey)
 	if err != nil {
 		err = fmt.Errorf("get Grpc config: %w", err)
@@ -82,7 +87,7 @@ func NewServerConfigMust(
 
 }
 
-func (c *GrpcConfig) validate() error {
+func (c *Config) validate() error {
 	port, err := strconv.Atoi(c.Port)
 	if err != nil || port < 0 || port > 65535 {
 		return fmt.Errorf("GRPC_PORT: invalid port %q", c.Port)

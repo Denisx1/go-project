@@ -2,6 +2,8 @@ package interceptors
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	logger "go_project/infrastructure/logging"
 	"runtime/debug"
 	"time"
@@ -9,7 +11,6 @@ import (
 	"github.com/google/uuid"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -89,6 +90,33 @@ func Trace() grpc.UnaryServerInterceptor {
 		return res, err
 	}
 }
+func Errors() grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req any,
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (resp any, err error) {
+		res, err := handler(ctx, req)
+		log := logger.FromContext(ctx)
+		if err == nil {
+			return res, nil
+		}
+
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
+		code, clientMsg := mapDomainError(err)
+
+		if isServerFault(code) {
+			log.Error("request failed", "code", code, "error", err)
+		} else {
+			log.Warn("request rejected", "code", code, "error", err)
+		}
+		return nil, status.Error(code, clientMsg)
+
+	}
+}
 
 func Panic() grpc.UnaryServerInterceptor {
 	return func(
@@ -97,6 +125,7 @@ func Panic() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (resp any, err error) {
+		var ErrPanic = errors.New("panic recovered")
 		defer func() {
 			if r := recover(); r != nil {
 				logger.FromContext(ctx).Error("handler panic",
@@ -105,7 +134,7 @@ func Panic() grpc.UnaryServerInterceptor {
 					"stack", string(debug.Stack()),
 				)
 				resp = nil
-				err = status.Error(codes.Internal, "internal error")
+				err = fmt.Errorf("%w: %v", ErrPanic, r)
 			}
 		}()
 		return handler(ctx, req)

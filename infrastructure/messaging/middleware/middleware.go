@@ -28,6 +28,7 @@ func Wrap(
 		withTrace(),
 		withDLQ(writer),
 		withRetry(3),
+		Errors(),
 		withRecover(),
 	)
 }

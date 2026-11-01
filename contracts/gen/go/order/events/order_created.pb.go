@@ -28,7 +28,6 @@ type OrderCreated struct {
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	IsActive      bool                   `protobuf:"varint,5,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	RequestId     string                 `protobuf:"bytes,6,opt,name=requestId,proto3" json:"requestId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -98,25 +97,17 @@ func (x *OrderCreated) GetIsActive() bool {
 	return false
 }
 
-func (x *OrderCreated) GetRequestId() string {
-	if x != nil {
-		return x.RequestId
-	}
-	return ""
-}
-
 var File_order_events_order_created_proto protoreflect.FileDescriptor
 
 const file_order_events_order_created_proto_rawDesc = "" +
 	"\n" +
-	" order/events/order_created.proto\x12\x0forder.events.v1\"\xa8\x01\n" +
+	" order/events/order_created.proto\x12\x0forder.events.v1\"\x8a\x01\n" +
 	"\fOrderCreated\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\tR\aorderId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x12\n" +
 	"\x04text\x18\x04 \x01(\tR\x04text\x12\x1b\n" +
-	"\tis_active\x18\x05 \x01(\bR\bisActive\x12\x1c\n" +
-	"\trequestId\x18\x06 \x01(\tR\trequestIdB0Z.contracts/gen/go/order/events/v1;ordereventsv1b\x06proto3"
+	"\tis_active\x18\x05 \x01(\bR\bisActiveB0Z.contracts/gen/go/order/events/v1;ordereventsv1b\x06proto3"
 
 var (
 	file_order_events_order_created_proto_rawDescOnce sync.Once

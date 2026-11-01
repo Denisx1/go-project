@@ -13,7 +13,7 @@ import (
 	pgx_pool "go_project/infrastructure/repository/postgres/pool/pgx"
 	"go_project/order/internal/core/config"
 	"go_project/order/internal/features/order/adapters/in/events"
-	OrderGrpcHandler "go_project/order/internal/features/order/adapters/in/grpc"
+	grpchandler "go_project/order/internal/features/order/adapters/in/grpc"
 	"go_project/order/internal/features/order/adapters/out/outbox"
 	"go_project/order/internal/features/order/adapters/out/repository"
 	"go_project/order/internal/features/order/application/service"
@@ -69,12 +69,17 @@ func run() error {
 	handler := events.NewHandler(service)
 	consumer := consumer.NewConsumer(reader, writer, handler.Handle, logger)
 
-	grpcHandler := OrderGrpcHandler.NewOrderGRPCHandler(service)
+	grpcHandler := grpchandler.NewOrderGRPCHandler(service)
 	grpcServer, err := server.NewGrpcServer(cfg.GrpcServer, logger)
 	if err != nil {
 		return fmt.Errorf("create grpc server: %w", err)
 	}
 	orderv1.RegisterOrderServer(grpcServer, grpcHandler)
+
+	grpcServer.WatchHealth(ctx,
+		server.Check{Name: "postgres", Fn: pool.Ping},
+		// server.Check{Name: "kafka", Fn: kafkaPing},
+	)
 
 	errChan := make(chan error, 2)
 	var wg sync.WaitGroup

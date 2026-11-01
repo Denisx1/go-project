@@ -1,7 +1,7 @@
 services:
-  port-forwarder:
+  order-postgres-port-forwarder:
     image: alpine/socat:1.8.0.3
-    container_name: ${PORT_FORWARDER_CONTAINER}
+    container_name: ${POSTGRES_PORT_FORWARDER}
     command: tcp-listen:5432,fork,reuseaddr tcp-connect:${POSTGRES_CONTAINER}:${POSTGRES_PORT}
     ports:
       - "127.0.0.1:5432:5432"
@@ -14,7 +14,7 @@ services:
       - ${MIGRATION_FOLDER}:/migrations
     networks:
       - shared-network
-  postgres:
+  order-postgres:
     image: postgres:18-alpine
     container_name: ${POSTGRES_CONTAINER}
     environment:
@@ -24,7 +24,7 @@ services:
     command: [ 'postgres', '-c', 'wal_level=logical', '-c', 'max_replication_slots=10', '-c', 'max_wal_senders=10' ]
     volumes:
       - ${POSTGRES_FOLDER}:/var/lib/postgresql
-    restart: always
+   
     networks:
       - shared-network
 networks:

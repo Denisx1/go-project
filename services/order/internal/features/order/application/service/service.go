@@ -12,7 +12,8 @@ type TxManager interface {
 
 type Repository interface {
 	CreateOrder(ctx context.Context, order domain.Order) (domain.Order, error)
-	DeleteOrder(ctx context.Context, orderId string) error
+	DeleteOrder(ctx context.Context, id string) error
+	GetOrder(ctx context.Context, id string) (domain.Order, error)
 }
 type OutboxRepository interface {
 	Publish(

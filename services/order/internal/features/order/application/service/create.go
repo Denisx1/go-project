@@ -20,9 +20,9 @@ func (s *Service) CreateOrder(
 		if err := s.OutboxRepo.Publish(ctx, domain.NewOrderCreated(newOrder)); err != nil {
 			return fmt.Errorf("create outbox: %w", err)
 		}
-		if err := s.Repository.DeleteOrder(ctx, newOrder.ID); err != nil {
-			return fmt.Errorf("delete order: %w", err)
-		}
+		// if err := s.Repository.DeleteOrder(ctx, newOrder.ID); err != nil {
+		// 	return fmt.Errorf("delete order: %w", err)
+		// }
 
 		resultOrder = newOrder
 		return nil
@@ -30,6 +30,5 @@ func (s *Service) CreateOrder(
 	if err != nil {
 		return domain.Order{}, err
 	}
-	fmt.Println(resultOrder)
 	return resultOrder, nil
 }

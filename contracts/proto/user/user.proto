@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package userv1;
+
+import "buf/validate/validate.proto";
+option go_package = "contracts/gen/go/user/v1;userv1";
+
+service CandidateService {
+    rpc CreateCandidate(CreateRequest) returns (CreateResponse);
+}
+service RoleService{
+    rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+    rpc GetRoleByName(GetByNameRequest) returns (GetRoleResponse);
+    rpc GetById(GetByIdRequest) returns (GetRoleResponse);
+}
+message GetByIdRequest {
+    string id = 1 [(buf.validate.field).string.uuid = true];
+}
+message GetByNameRequest{
+   string name  = 1 [(buf.validate.field).string={
+        min_len: 3,
+        max_len: 32
+    }];
+}
+message GetRoleResponse{
+    string id = 1 [(buf.validate.field).string.uuid = true];
+    string name  = 2 [(buf.validate.field).string={
+        min_len: 3,
+        max_len: 32
+    }];
+    string description = 3 [(buf.validate.field).string={
+        min_len: 3,
+        max_len: 100
+    }];
+    string permissions = 4 [(buf.validate.field).string={
+        min_len: 3,
+        max_len: 100
+    }];
+}
+
+
+message CreateRoleRequest{
+    string name  = 1 [(buf.validate.field).string={
+        min_len: 3,
+        max_len: 32
+    }];
+    string description = 2 [(buf.validate.field).string={
+        min_len: 3,
+        max_len: 100
+    }];
+    string permissions = 3 [(buf.validate.field).string={
+        min_len: 3,
+        max_len: 100
+    }];
+}
+message CreateRoleResponse{
+    string id = 1 [(buf.validate.field).string.uuid = true];
+
+}
+message CreateResponse{
+    string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message CreateRequest {
+    string email = 1 [(buf.validate.field).string.email = true];
+    string user_name = 2 [(buf.validate.field).string = {
+    min_len: 3,
+    max_len: 32
+    }]; 
+
+    string password = 3 [(buf.validate.field).string = {
+    min_len: 8
+    }];
+    string role = 4 [(buf.validate.field).string = {
+    min_len: 1
+    }];
+}

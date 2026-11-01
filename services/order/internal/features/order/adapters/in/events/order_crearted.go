@@ -2,8 +2,10 @@ package events
 
 import (
 	"context"
+	"fmt"
 	logger "go_project/infrastructure/logging"
 	messaging "go_project/infrastructure/messaging"
+	"go_project/infrastructure/messaging/request"
 	"go_project/order/internal/core/domain"
 )
 
@@ -25,16 +27,15 @@ func (h *Handler) handleOrderCreated(
 		"body_size", len(msg.Body),
 		"headers", msg.Headers,
 	)
-	// var event CreateOrderEvent
-	// if err := request.DecodeAndValidate(msg, &event); err != nil {
-	// 	return resposeHandler.ErrorResponse(err, "failed to decode and validate request")
-
-	// }
-	// orderDomain := domainFromDTO(event)
-	// _, err := h.OrderService.CreateOrder(ctx, orderDomain)
-	// if err != nil {
-	// 	return resposeHandler.ErrorResponse(err, "Error to handle event")
-	// }
+	var event CreateOrderEvent
+	if err := request.DecodeAndValidate(msg, &event); err != nil {
+		return fmt.Errorf("failed to decode and validate request: %w", err)
+	}
+	orderDomain := domainFromDTO(event)
+	_, err := h.OrderService.CreateOrder(ctx, orderDomain)
+	if err != nil {
+		return fmt.Errorf("failed to handle order: %w", err)
+	}
 	return nil
 
 }

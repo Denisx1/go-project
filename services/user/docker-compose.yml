@@ -1,0 +1,58 @@
+services:
+  user-redis:
+        image: redis:alpine
+        container_name: ${REDIS_CONTAINER}
+        command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+        volumes:
+            - ${REDIS_FOLDER}:/data
+        healthcheck:
+            test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+            interval: 5s
+            timeout: 3s
+            retries: 5
+            start_period: 5s
+        networks:
+            - shared-network
+
+  user-redis-port-forwarder:
+    image: alpine/socat:1.8.0.3
+    container_name: ${REDIS_PORT_FORWARDER}
+    command: tcp-listen:6379,fork,reuseaddr tcp-connect:${REDIS_CONTAINER}:${REDIS_PORT}
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - shared-network
+
+  user-postgres-port-forwarder:
+    image: alpine/socat:1.8.0.3
+    container_name: ${POSTGRES_PORT_FORWARDER}
+    command: tcp-listen:5432,fork,reuseaddr tcp-connect:${POSTGRES_CONTAINER}:${POSTGRES_PORT}
+    ports:
+      - "127.0.0.1:5433:5432"
+    networks:
+      - shared-network
+
+  user-migrate:
+    image: migrate/migrate:v4.19.1
+    container_name: ${MIGRATION_CONTAINER}
+    user: "${UID}:${GID}"
+    volumes:
+      - ${MIGRATION_FOLDER}:/migrations
+    networks:
+      - shared-network
+  user-postgres:
+    image: postgres:18-alpine
+    container_name: ${POSTGRES_CONTAINER}
+
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    command: [ 'postgres', '-c', 'wal_level=logical', '-c', 'max_replication_slots=10', '-c', 'max_wal_senders=10' ]
+    volumes:
+      - ${POSTGRES_FOLDER}:/var/lib/postgresql
+    networks:
+      - shared-network
+networks:
+  shared-network:
+    external: true

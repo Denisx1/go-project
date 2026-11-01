@@ -17,11 +17,11 @@ env-cleanup:
 	@echo "All data cleaned up for $(SERVICE_NAME)."
 
 env-port-forward:
-	@$(DC) up -d $(PORT_FORWARDER_CONTAINER)
+	@$(DC) up -d $(POSTGRES_PORT_FORWARDER)
 
 env-port-close:
-	@$(DC) stop $(PORT_FORWARDER_CONTAINER)
-	@$(DC) rm -f $(PORT_FORWARDER_CONTAINER)
+	@$(DC) stop $(POSTGRES_PORT_FORWARDER)
+	@$(DC) rm -f $(POSTGRES_PORT_FORWARDER)
 
 migrate-create:
 ifndef seq
@@ -60,7 +60,3 @@ proto-generate:
 
 run:
 	@go run ./cmd/order
-
-.PHONY: env-up env-down env-cleanup env-port-forward env-port-close \
-	migrate-create logs-cleanup migrate-up migrate-down migrate-drop \
-	migrate-version migrate-action proto-generate run

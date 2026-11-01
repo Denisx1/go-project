@@ -1,4 +1,4 @@
-package OrderGrpcHandler
+package grpchandler
 
 import (
 	"context"
@@ -7,10 +7,9 @@ import (
 )
 
 type OrderService interface {
-	CreateOrder(
-		ctx context.Context,
-		order domain.Order,
-	) (domain.Order, error)
+	CreateOrder(ctx context.Context, order domain.Order) (domain.Order, error)
+	GetOrder(ctx context.Context, id string) (domain.Order, error)
+	DeleteOrder(ctx context.Context, id string) error
 }
 type OrderGRPCHandler struct {
 	OrderService OrderService
